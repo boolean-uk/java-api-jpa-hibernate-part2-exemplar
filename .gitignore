@@ -38,3 +38,5 @@ out/
 
 ### Ignore application.yml file ###
 application.yml
+report.html.html
+report.html.json
