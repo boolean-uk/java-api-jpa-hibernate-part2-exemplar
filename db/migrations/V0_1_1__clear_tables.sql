@@ -1,0 +1,1 @@
+TRUNCATE authors, publishers, books;
