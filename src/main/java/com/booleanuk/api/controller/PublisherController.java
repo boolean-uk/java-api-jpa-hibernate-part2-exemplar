@@ -1,11 +1,14 @@
 package com.booleanuk.api.controller;
 
+import com.booleanuk.api.model.Book;
 import com.booleanuk.api.model.Publisher;
+import com.booleanuk.api.repository.BookRepository;
 import com.booleanuk.api.repository.PublisherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -14,10 +17,47 @@ import java.util.List;
 public class PublisherController {
     @Autowired
     private PublisherRepository publisherRepository;
+    @Autowired
+    private BookRepository bookRepository;
 
     @GetMapping
     public List<Publisher> getAll() {
         return this.publisherRepository.findAll();
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Publisher> getOne(@PathVariable int id) {
+        Publisher publisher = this.publisherRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No Publisher with that ID was found"));
+        return ResponseEntity.ok(publisher);
+    }
+
+    @PostMapping
+    public ResponseEntity<Publisher> create(@RequestBody Publisher publisher) {
+        Publisher createdPublisher = this.publisherRepository.save(publisher);
+        List<Book> books = this.bookRepository.getBooksByPublisherId(createdPublisher.getId());
+        createdPublisher.setBooks(books);
+        return new ResponseEntity<Publisher>(createdPublisher, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Publisher> update(@PathVariable int id, @RequestBody Publisher publisher) {
+        Publisher publisherToUpdate = this.publisherRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No Publisher with that ID was found"));
+        if (publisher.getName() == null || publisher.getLocation() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Publishers must have both a name and a location set.");
+        }
+        publisherToUpdate.setName(publisher.getName());
+        publisherToUpdate.setLocation(publisher.getLocation());
+        return new ResponseEntity<Publisher>(this.publisherRepository.save(publisherToUpdate), HttpStatus.CREATED);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Publisher> delete(@PathVariable int id) {
+        Publisher publisherToDelete = this.publisherRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No Publisher with that ID was found"));
+        if (publisherToDelete.getBooks().size() > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot delete that Publisher as there are books associated with them.");
+        }
+        publisherToDelete.setBooks(null);
+        this.publisherRepository.delete(publisherToDelete);
+        return ResponseEntity.ok(publisherToDelete);
+    }
 }
